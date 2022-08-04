@@ -8,24 +8,72 @@ body {
     justify-content: center;
     align-items: center;
 
+    background-color: black;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+.main-container {
+    display: grid;
+    grid-template-rows: 1fr 5fr 1fr;
+    gap: 15px;
+    align-items: center;
+    justify-items: center;
+}
+
+.title {
+    color: white;
+    margin: 0;
 }
 
 .game-container {
     display: grid;
-    width: 40vw;
-    height: 40vw;
+    width: 30vw;
+    height: 30vw;
 
     grid-template-rows: 1fr 1fr 1fr;
     grid-template-columns: 1fr 1fr 1fr;
-
-    border: 1px black solid;
 }
 
-.game-container div {
+.cell {
     display: grid;
     justify-content: center;
     align-content: center;
     font-size: 5vw;
-    border: 1px black solid;
+    font-weight: bold;
+    color: white;
+    border: 2px white solid;
+    margin: 2px;
 }
+
+.cell-0, .cell-1, .cell-2 {
+   border-top: none;
+}
+
+.cell-0, .cell-3, .cell-6 {
+    border-left: none;
+ }
+
+ .cell-6, .cell-7, .cell-8 {
+    border-bottom: none;
+ }
+
+ .cell-2, .cell-5, .cell-8 {
+    border-right: none;
+ }
+
+ .reset-button {
+    border: 2px white solid;
+    color: white;
+    background-color: black;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 200ms ease-in-out;
+ }
+
+ .reset-button:hover {
+    background-color: white;
+    color: black;
+    transition: 200ms ease-in-out;
+ }

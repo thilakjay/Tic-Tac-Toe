@@ -1,109 +1,197 @@
-//to display and render the game board
-const Gameboard = (() => {
-    let grid = ["","","","","","","","",""];
+const gameBoard = (() => {
+    let grid;
 
-    const reset = () => {
-        grid.forEach((item, index) => grid[index] = "");       
-    }
-
-    const checkEndGameConditions = () => {
-        //create logic here to check for winner (three identical cells)
-        if((grid[0]===grid[1] && grid[1]===grid[2] && grid[1] !== "") ||
-           (grid[3]===grid[4] && grid[4]===grid[5] && grid[4] !== "") ||
-           (grid[6]===grid[7] && grid[7]===grid[8] && grid[7] !== "") ||
-           (grid[0]===grid[3] && grid[3]===grid[6] && grid[3] !== "") ||
-           (grid[1]===grid[4] && grid[4]===grid[7] && grid[4] !== "") ||
-           (grid[2]===grid[5] && grid[5]===grid[8] && grid[5] !== "") ||
-           (grid[0]===grid[3] && grid[3]===grid[6] && grid[3] !== "") ||
-           (grid[0]===grid[4] && grid[4]===grid[8] && grid[4] !== "") ||
-           (grid[2]===grid[4] && grid[4]===grid[6] && grid[4] !== "")) 
-            return "win";
-        else if(grid.every(item => item !== ""))
-            return "tie";
-    }
-    
-    const getWinningRow = () => {
-
-    }
-
-    return {grid, checkEndGameConditions, reset};
+    return {grid};
 })();
 
-//player object for player X & player O
-const Player = (letter) => { 
-    const mark = letter;
+const player = (playerLetter) => { 
+    const letter = playerLetter;
+    
+    return {letter};
+};
 
-    const markCell = (e) => {
-        e.target.textContent = mark; 
-        Gameboard.grid[e.target.id] = mark;       
-    }
+const gameController = (() => {
+    //array containing all possible combinations of indexes to produce a win.
+    const winningCombos = [
+        [0,1,2],
+        [3,4,5],
+        [6,7,8],
+        [0,3,6],
+        [1,4,7],
+        [2,5,8],
+        [0,4,8],
+        [2,4,6]
+    ];
 
-    return {markCell, mark};
-}
-
-
-//object to control flow of game
-const GameController = (() => {
-    const container = document.querySelector("#game-container"); 
+    const humanPlayer = player("X");
+    const aiPlayer = player("O");
+    
+    const cells = document.querySelectorAll(".cell");
     const resetButton = document.querySelector("#reset-button");
-    const playerX = Player("X");
-    const playerO = Player("O");
+    resetButton.addEventListener("click", startGame);
 
-    let currentPlayer = playerX;
+    let isGameOver;
 
-    const changePlayerTurn = () => {
-        currentPlayer = (currentPlayer === playerX) ? playerO : playerX;
+    function startGame() {
+        isGameOver = false;
+        gameBoard.grid = [0,1,2,3,4,5,6,7,8];
+        for(let i=0; i < cells.length; i++) {
+            cells[i].innerText = "";
+            cells[i].style.backgroundColor = "black";
+            cells[i].style.color = "white";
+            cells[i].addEventListener("click", clickHandler, {once:true});
+        }
     }
 
-    const declareWinner = (player) => {
-        console.log(`Player ${player.mark} is the winner!`);
-    }
-
-    const declareTie = () => {
-        console.log(`TIE GAME`);
-    }
-
-    const clickHandler = (e) => {
-        currentPlayer.markCell(e);
-
-        if(Gameboard.checkEndGameConditions() === "win") {
-            declareWinner(currentPlayer);
+    function clickHandler(e) {
+        if(e.target.innerText === "") {
+            playerTurn(e.target.id, humanPlayer);
             
-            for(let i=0; i < container.children.length; i++) {
-                container.children[i].removeEventListener("click", clickHandler);
+            if(isGameOver) return;
+
+            if(!checkTieGame()) {
+                setTimeout(() => playerTurn(getBestMove(), aiPlayer), 200);
+            }           
+        }       
+    }
+
+    function checkTieGame() {
+        if(gameBoard.grid.every(cell => typeof cell !== "number")) {
+            cells.forEach(cell => {
+                cell.removeEventListener("click", clickHandler, {once:true});
+                cell.style.backgroundColor = "gray";
+                isGameOver = true;
+            })
+            return true;
+        }
+        return false;    
+    }
+
+    function getBestMove() {
+        return minimax(gameBoard.grid, aiPlayer).index;
+    }
+
+    function playerTurn(cellId, player) {
+        gameBoard.grid[cellId] = player.letter;
+        document.getElementById(cellId).innerText = player.letter;     
+        let winningCombo = checkWin(gameBoard.grid, player);
+        if(winningCombo) endGame(winningCombo);
+    }
+
+    function endGame(winningCombo) {
+        for(let elementIndex of winningCombos[winningCombo.index]) {
+            console.log(winningCombos[winningCombo.index]);
+            document.getElementById(elementIndex).style.backgroundColor = "white";
+            document.getElementById(elementIndex).style.color = "black";
+        }
+
+        for(let i=0; i<cells.length; i++) {
+            cells[i].removeEventListener("click", clickHandler);
+        }
+        
+        isGameOver = true;
+    }
+
+    function checkWin(grid, player) {
+        //find every index on the grid(array) that the player has played in.
+        const cellsPlayed = grid.map((cell, index) => {
+            if(cell === player.letter) return index;
+        }).filter(cell => cell !== undefined);
+
+        let winningCombo = null;
+
+        //check if played cells has a winning combination & return the index of
+        // winning combination and the winning player.
+        for(let [index, combo] of winningCombos.entries()) {
+            if(combo.every(cell => (cellsPlayed.indexOf(cell) > -1))) {
+                return winningCombo = {index: index, player: player};
+            }
+        }
+
+        return winningCombo;
+    }
+
+    function minimax(newGrid,player) {
+        //store all available (unplayed) spaces/cell on the board into an array
+        let availableCells = gameBoard.grid.filter(cell => typeof cell === "number");
+        
+        //checks end game state and returns a score based on winner or tie game.
+        //since minimax is initially called on the aiPlayer, it returns -100 if human wins,
+        // +100 if aiplayer wins, and 0 if tie game.
+        if(checkWin(newGrid, humanPlayer)) {
+            return {score: -100};
+        }else if(checkWin(newGrid, aiPlayer)) {
+            return {score: 100};
+        }else if(availableCells.length === 0) {
+            return {score: 0};
+        }
+
+        //store each move object {index: index, score: score} into moves array
+        let moves = [];
+
+        //loop through each available space on board/grid
+        for(let i=0; i<availableCells.length; i++) {
+
+            let move = {};
+
+            //current index of available cell is stored
+            move.index = newGrid[availableCells[i]];
+
+            //player's turn is made on the first available cell
+            newGrid[availableCells[i]] = player.letter;
+
+            //depending on player's turn, minimax is called with the newly made move
+            //on the board/grid. The function is called recursively and a score is returned 
+            //once an end-game state is found.
+            if(player.letter === aiPlayer.letter) {
+                let result = minimax(newGrid, humanPlayer);
+                move.score = result.score;
+            }else {
+                let result = minimax(newGrid, aiPlayer);
+                move.score = result.score;
             }
 
-            return;
-        }else if(Gameboard.checkEndGameConditions() === "tie"){
-            declareTie();
-            return;
-        }
-        changePlayerTurn();   
-    }
+            //the player's turn (letter) is removed and is a blank space again.
+            newGrid[availableCells[i]] = move.index;
 
-    const render = () => {            
-        Gameboard.grid.forEach((item, i) => {
-            const cell = document.createElement("div");
-            cell.id = i;
-            cell.textContent = item;
-            container.appendChild(cell);
-            cell.addEventListener("click", clickHandler, {once : true});
-        })
-    } 
-
-    const reset = () => {     
-        Gameboard.reset();
-
-        while(container.firstChild) {
-            container.removeChild(container.firstChild);
+            //the object (index of the move and its respective score) is pushed to the array.
+            moves.push(move);
         }
 
-        currentPlayer = playerX;
-        render();
-    }
-    resetButton.addEventListener("click", reset);
+        //we check for the best move according to the player's turn.
+    
+        let bestMove;
 
-    return {render};
+        //aiPlayer loops over and picks move with the highest score; 
+        //highest score = best move for ai
+        if(player.letter === aiPlayer.letter) {
+            let bestScore = -1000;
+            
+            for(let i=0; i<moves.length; i++) {
+                if(moves[i].score > bestScore) {
+                    bestScore = moves[i].score;
+                    bestMove = i;
+                }
+            }
+        //humanPlayer loops over and picks move with the lowest score; 
+        //lowest score = best move for human
+        }else {
+            let bestScore = 1000;
+            
+            for(let i=0; i<moves.length; i++) {
+                if(moves[i].score < bestScore) {
+                    bestScore = moves[i].score;
+                    bestMove = i;
+                }
+            }
+        }
+
+        //returns the best possible move that a player can make
+        return moves[bestMove];
+    }
+
+    return {startGame}; 
 })();
 
-GameController.render();
+gameController.startGame();
+
